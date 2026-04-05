@@ -1,6 +1,5 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from detoxify import Detoxify
@@ -8,10 +7,19 @@ import os
 
 app = FastAPI(title="Toxic Language Detector")
 
-# ── Load model once at startup ─────────────────────────────────────────────────
-print("Loading model…")
-model = Detoxify("multilingual")
-print("✅ Model ready.")
+# ── Lazy model loader ──────────────────────────────────────────────────────────
+# Model is loaded on first /analyze request, not at startup.
+# This lets Render bind the port before the heavy model download begins.
+_model: Detoxify | None = None
+
+def get_model() -> Detoxify:
+    global _model
+    if _model is None:
+        print("Loading model…")
+        # "original" = unitary/toxic-bert  (~250 MB RAM, fits in 512 MB free tier)
+        _model = Detoxify("original")
+        print("✅ Model ready.")
+    return _model
 
 # ── Templates ──────────────────────────────────────────────────────────────────
 BASE_DIR   = os.path.dirname(__file__)
@@ -37,6 +45,11 @@ class TextRequest(BaseModel):
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse(request=request, name="index.html")
@@ -47,7 +60,7 @@ async def analyze(body: TextRequest):
     if not body.text.strip():
         return {"error": "Please enter some text."}
 
-    raw = model.predict(body.text)
+    raw = get_model().predict(body.text)
     # raw is dict[label, float] for a single string
     scores = {k: round(float(v), 4) for k, v in raw.items()}
 
