@@ -2,27 +2,18 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from detoxify import Detoxify
+import requests
 import os
 
 app = FastAPI(title="Toxic Language Detector")
 
-# ── Lazy model loader ──────────────────────────────────────────────────────────
-# Model is loaded on first /analyze request, not at startup.
-_model: Detoxify | None = None
-
-def get_model() -> Detoxify:
-    global _model
-    if _model is None:
-        print("Loading model…")
-        # "original" = unitary/toxic-bert  (~250 MB RAM, fits in 512 MB free tier)
-        _model = Detoxify("original")
-        print("✅ Model ready.")
-    return _model
+# ── Config ─────────────────────────────────────────────────────────────────────
+HF_API_URL = "https://api-inference.huggingface.co/models/unitary/toxic-bert"
+HF_API_TOKEN = os.environ.get("HF_API_TOKEN", "")
 
 # ── Templates ──────────────────────────────────────────────────────────────────
-BASE_DIR   = os.path.dirname(__file__)
-templates  = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+BASE_DIR  = os.path.dirname(__file__)
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 # ── Thresholds ─────────────────────────────────────────────────────────────────
 WARNING_THRESHOLD = 0.30
@@ -45,23 +36,48 @@ class TextRequest(BaseModel):
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
 @app.get("/health")
-async def health():
+def health():
     return {"status": "ok"}
 
 
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request):
+def index(request: Request):
     return templates.TemplateResponse(request=request, name="index.html")
 
 
 @app.post("/analyze")
-async def analyze(body: TextRequest):
+def analyze(body: TextRequest):
     if not body.text.strip():
         return {"error": "Please enter some text."}
 
-    raw = get_model().predict(body.text)
-    # raw is dict[label, float] for a single string
-    scores = {k: round(float(v), 4) for k, v in raw.items()}
+    if not HF_API_TOKEN:
+        return {"error": "HF_API_TOKEN is not set. See .env.example."}
+
+    try:
+        response = requests.post(
+            HF_API_URL,
+            headers={"Authorization": f"Bearer {HF_API_TOKEN}"},
+            json={"inputs": body.text},
+            timeout=30,
+        )
+    except requests.exceptions.ConnectionError:
+        return {"error": "Could not reach HuggingFace API. Check your internet connection."}
+    except requests.exceptions.Timeout:
+        return {"error": "HuggingFace API timed out. Try again."}
+
+    if response.status_code == 503:
+        estimated = response.json().get("estimated_time", "unknown")
+        return {"error": f"Model is loading on HuggingFace (~{estimated}s). Try again shortly."}
+
+    if response.status_code == 401:
+        return {"error": "Invalid HF_API_TOKEN. Check your token at huggingface.co/settings/tokens."}
+
+    if not response.ok:
+        return {"error": f"HuggingFace API error {response.status_code}: {response.text}"}
+
+    # Response: [[{"label": "toxic", "score": 0.95}, ...]]
+    raw = response.json()
+    scores = {item["label"]: round(item["score"], 4) for item in raw[0]}
 
     top_label = max(scores, key=scores.get)
     top_score = scores[top_label]

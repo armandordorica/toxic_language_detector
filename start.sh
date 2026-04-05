@@ -1,6 +1,17 @@
 #!/bin/bash
 set -e
 
+# Load .env if present
+if [ -f .env ]; then
+  export $(grep -v '^#' .env | xargs)
+fi
+
+if [ -z "$HF_API_TOKEN" ]; then
+  echo "Error: HF_API_TOKEN is not set."
+  echo "Copy .env.example to .env and add your token from https://huggingface.co/settings/tokens"
+  exit 1
+fi
+
 PORT=${PORT:-8000}
 
 echo "Starting app on port $PORT..."
