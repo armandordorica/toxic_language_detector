@@ -1,6 +1,6 @@
 # 🙊 Toxic Language Detector
 
-A production-ready web app that scores any text across **6 toxicity dimensions** and returns a real-time alert level. Built on top of [`unitary/multilingual-toxic-xlm-roberta`](https://huggingface.co/unitary/multilingual-toxic-xlm-roberta) via the [`detoxify`](https://github.com/unitaryai/detoxify) library.
+A web app that scores any text across **6 toxicity dimensions** and returns a real-time alert level. Uses the [`unitary/toxic-bert`](https://huggingface.co/unitary/toxic-bert) model via the HuggingFace Inference API — no local model download required.
 
 ---
 
@@ -23,13 +23,13 @@ A production-ready web app that scores any text across **6 toxicity dimensions**
                          │
                          ▼
 ┌─────────────────────────────────────────────────────────┐
-│              Detoxify  ·  multilingual model             │
-│      unitary/multilingual-toxic-xlm-roberta              │
-│      (XLM-RoBERTa fine-tuned on Jigsaw 2020)            │
+│         HuggingFace Inference API                        │
+│         unitary/toxic-bert                               │
+│         (BERT fine-tuned on Jigsaw dataset)             │
 │                                                         │
 │  Output labels:                                         │
-│    toxicity · severe_toxicity · obscene                 │
-│    threat   · insult          · identity_attack         │
+│    toxic · severe_toxic · obscene                       │
+│    threat · insult      · identity_hate                 │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -45,8 +45,8 @@ A production-ready web app that scores any text across **6 toxicity dimensions**
 
 | Layer       | Technology                                      |
 |-------------|--------------------------------------------------|
-| Model       | `unitary/multilingual-toxic-xlm-roberta` (XLM-R) |
-| ML library  | `detoxify 0.5`, `torch`, `transformers`          |
+| Model       | `unitary/toxic-bert` via HuggingFace Inference API |
+| ML library  | HuggingFace hosted (no local dependencies)         |
 | Backend     | `FastAPI` + `Uvicorn`                            |
 | Templating  | `Jinja2`                                         |
 | Frontend    | Vanilla HTML / CSS / JS (no framework)           |
