@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🙊 Toxic Language Detector</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f0f1a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .card {
+      background: #1a1a2e;
+      border: 1px solid #2d2d4e;
+      border-radius: 1.25rem;
+      padding: 2rem 1.75rem;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 0.35rem;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 0.82rem;
+      color: #718096;
+      margin-bottom: 1.75rem;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 130px;
+      background: #0f0f1a;
+      border: 1px solid #2d2d4e;
+      border-radius: 0.75rem;
+      color: #e2e8f0;
+      font-size: 1rem;
+      padding: 0.85rem 1rem;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    textarea:focus { border-color: #6366f1; }
+
+    button {
+      width: 100%;
+      margin-top: 1rem;
+      padding: 0.85rem;
+      border: none;
+      border-radius: 0.75rem;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    button:hover  { opacity: 0.9; }
+    button:active { transform: scale(0.98); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Alert banner ─────────────────────────────────────── */
+    #alert-banner {
+      display: none;
+      margin-top: 1.5rem;
+      padding: 1rem 1.25rem;
+      border-radius: 0.85rem;
+      text-align: center;
+    }
+    #alert-banner .emoji { font-size: 2rem; }
+    #alert-banner .level {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-top: 0.25rem;
+      letter-spacing: 0.05em;
+    }
+    #alert-banner .detail {
+      font-size: 0.82rem;
+      margin-top: 0.2rem;
+      opacity: 0.85;
+    }
+
+    /* ── Score bars ───────────────────────────────────────── */
+    #scores {
+      display: none;
+      margin-top: 1.5rem;
+    }
+    #scores h3 {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #718096;
+      margin-bottom: 0.85rem;
+    }
+    .score-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 0.6rem;
+    }
+    .score-label {
+      width: 130px;
+      font-size: 0.82rem;
+      color: #a0aec0;
+      text-transform: capitalize;
+      flex-shrink: 0;
+    }
+    .bar-track {
+      flex: 1;
+      background: #0f0f1a;
+      border-radius: 999px;
+      height: 8px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.6s ease;
+    }
+    .score-value {
+      width: 44px;
+      text-align: right;
+      font-size: 0.8rem;
+      font-variant-numeric: tabular-nums;
+      color: #e2e8f0;
+      flex-shrink: 0;
+    }
+
+    #error-msg {
+      display: none;
+      margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      background: #2d1515;
+      border: 1px solid #e53e3e;
+      border-radius: 0.65rem;
+      font-size: 0.85rem;
+      color: #fc8181;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🙊 Toxic Language Detector</h1>
+    <p class="subtitle">Powered by <strong>unitary/multilingual-toxic-xlm-roberta</strong></p>
+
+    <textarea id="input-text" placeholder="Type or paste any message here…"></textarea>
+    <button id="analyze-btn" onclick="analyze()">Analyze</button>
+
+    <div id="error-msg"></div>
+
+    <div id="alert-banner">
+      <div class="emoji" id="alert-emoji"></div>
+      <div class="level" id="alert-level"></div>
+      <div class="detail" id="alert-detail"></div>
+    </div>
+
+    <div id="scores">
+      <h3>Score Breakdown</h3>
+      <div id="score-bars"></div>
+    </div>
+  </div>
+
+  <script>
+    function scoreColor(v) {
+      if (v >= 0.70) return "#e53e3e";
+      if (v >= 0.30) return "#dd6b20";
+      return "#38a169";
+    }
+
+    async function analyze() {
+      const text = document.getElementById("input-text").value.trim();
+      const btn  = document.getElementById("analyze-btn");
+      const err  = document.getElementById("error-msg");
+
+      // Reset UI
+      err.style.display = "none";
+      document.getElementById("alert-banner").style.display = "none";
+      document.getElementById("scores").style.display        = "none";
+
+      if (!text) {
+        err.textContent = "Please enter some text first.";
+        err.style.display = "block";
+        return;
+      }
+
+      btn.disabled   = true;
+      btn.innerHTML  = '<span class="spinner"></span>Analyzing…';
+
+      try {
+        const res  = await fetch("/analyze", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ text }),
+        });
+        const data = await res.json();
+
+        if (data.error) {
+          err.textContent   = data.error;
+          err.style.display = "block";
+          return;
+        }
+
+        // ── Alert banner ──────────────────────────────────
+        const banner = document.getElementById("alert-banner");
+        banner.style.display    = "block";
+        banner.style.background = data.alert.color + "22";
+        banner.style.border     = `1px solid ${data.alert.color}`;
+        document.getElementById("alert-emoji").textContent  = data.alert.emoji;
+        document.getElementById("alert-level").textContent  = data.alert.level;
+        document.getElementById("alert-level").style.color  = data.alert.color;
+        document.getElementById("alert-detail").textContent =
+          `Top signal: ${data.top_label.replace(/_/g," ")} — ${(data.top_score * 100).toFixed(1)}%`;
+
+        // ── Score bars ────────────────────────────────────
+        const barsDiv = document.getElementById("score-bars");
+        barsDiv.innerHTML = "";
+
+        const sorted = Object.entries(data.scores).sort((a,b) => b[1] - a[1]);
+        sorted.forEach(([label, value]) => {
+          const pct   = (value * 100).toFixed(1);
+          const color = scoreColor(value);
+          barsDiv.innerHTML += `
+            <div class="score-row">
+              <span class="score-label">${label.replace(/_/g," ")}</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:${pct}%;background:${color}"></div>
+              </div>
+              <span class="score-value">${pct}%</span>
+            </div>`;
+        });
+
+        document.getElementById("scores").style.display = "block";
+
+      } catch (e) {
+        err.textContent   = "Network error — is the server running?";
+        err.style.display = "block";
+      } finally {
+        btn.disabled  = false;
+        btn.innerHTML = "Analyze";
+      }
+    }
+
+    // Allow Ctrl+Enter / Cmd+Enter to submit
+    document.addEventListener("keydown", e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") analyze();
+    });
+  </script>
+</body>
+</html>
