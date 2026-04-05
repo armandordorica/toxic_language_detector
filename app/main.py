@@ -9,7 +9,6 @@ app = FastAPI(title="Toxic Language Detector")
 
 # ── Lazy model loader ──────────────────────────────────────────────────────────
 # Model is loaded on first /analyze request, not at startup.
-# This lets Render bind the port before the heavy model download begins.
 _model: Detoxify | None = None
 
 def get_model() -> Detoxify:
