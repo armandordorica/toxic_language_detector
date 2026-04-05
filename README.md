@@ -50,7 +50,7 @@ A production-ready web app that scores any text across **6 toxicity dimensions**
 | Backend     | `FastAPI` + `Uvicorn`                            |
 | Templating  | `Jinja2`                                         |
 | Frontend    | Vanilla HTML / CSS / JS (no framework)           |
-| Deployment  | Render (free tier) via `render.yaml`             |
+| Deployment  | Self-hosted via Cloudflare Tunnel (`start.sh`)   |
 
 ---
 
@@ -82,21 +82,24 @@ pip install -r requirements.txt
 ### 4. Start the server
 
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Open **http://localhost:8000** in your browser (works on mobile too — just use your machine's LAN IP, e.g. `http://192.168.x.x:8000`).
+Open **http://localhost:8000** in your browser.
 
 ---
 
-## ☁️ Deploy to Render (free)
+## 🌐 Host publicly from your own machine (free)
 
-1. Push this repo to GitHub.
-2. Go to [render.com](https://render.com) → **New → Web Service** → connect your repo.
-3. Render auto-detects `render.yaml` and configures everything.
-4. Click **Deploy** — you'll get a public URL like `https://toxic-language-detector.onrender.com`.
+Use `start.sh` to launch the app and a Cloudflare Tunnel in one command:
 
-> ⚠️ Free-tier Render instances spin down after 15 min of inactivity. The first request after a cold start will take ~30–60 s while the model loads.
+```bash
+./start.sh
+```
+
+It prints a public `https://*.trycloudflare.com` URL you can open from any device. No account or cloud service needed.
+
+See **[SELF_HOSTING.md](SELF_HOSTING.md)** for the full guide, including how to get a stable URL.
 
 ---
 
@@ -122,9 +125,9 @@ toxic_language_detector/
 │   └── templates/
 │       └── index.html       # Mobile-friendly single-page UI
 ├── eda.ipynb                # Exploratory / prototype notebook
-├── Procfile                 # Process declaration (Render / Railway)
-├── render.yaml              # Render deployment config
+├── start.sh                 # Launch app + Cloudflare tunnel in one command
 ├── requirements.txt         # Python dependencies
+├── SELF_HOSTING.md          # Step-by-step self-hosting guide
 └── README.md
 ```
 

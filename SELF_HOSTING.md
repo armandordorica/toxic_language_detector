@@ -180,29 +180,16 @@ Your app is now at `https://myapp.yourdomain.com` every time.
 
 ## Step 6 — Run Everything with One Command (Optional)
 
-Create a shell script `start.sh` in your project root:
+This repo includes a `start.sh` that launches the app and tunnel together:
 
 ```bash
-#!/bin/bash
-set -e
-
-echo "Starting app..."
-uvicorn app.main:app --host 127.0.0.1 --port 8000 &
-APP_PID=$!
-
-echo "Opening tunnel..."
-cloudflared tunnel --url http://localhost:8000 &
-TUNNEL_PID=$!
-
-# Shut both down on Ctrl+C
-trap "kill $APP_PID $TUNNEL_PID" EXIT
-wait
+./start.sh
 ```
 
-Make it executable and run:
+It starts `uvicorn` on port 8000, opens the Cloudflare tunnel, and shuts both down cleanly on `Ctrl+C`. You can override the port:
+
 ```bash
-chmod +x start.sh
-./start.sh
+PORT=9000 ./start.sh
 ```
 
 ---
@@ -226,7 +213,6 @@ chmod +x start.sh
 | cloudflared (quick tunnel) | Free, no account |
 | cloudflared (named tunnel) | Free, Cloudflare account required |
 | Your electricity | ~$0.01–0.05/day for a MacBook |
-| Render / Railway / Fly.io | $7–25/month |
 
 ---
 
