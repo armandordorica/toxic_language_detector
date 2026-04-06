@@ -89,6 +89,59 @@ Open **http://localhost:8000** in your browser.
 
 ---
 
+## ⚙️ Switching inference backends
+
+The app supports two inference backends, controlled by a single line in your `.env` file.
+
+| Backend | How it works | Best for |
+|---|---|---|
+| `huggingface` | Calls HuggingFace Inference API | Lightweight setup, no GPU needed |
+| `local` | Runs model on your machine (MPS → CUDA → CPU) | Speed, no cold starts, no API dependency |
+
+### Switch to HuggingFace API (default)
+
+```
+# .env
+INFERENCE_BACKEND=huggingface
+HF_API_TOKEN=hf_xxxxxxxxxxxxxxxx
+```
+
+### Switch to local inference (Mac GPU / MPS)
+
+```
+# .env
+INFERENCE_BACKEND=local
+```
+
+Install the extra dependencies once:
+
+```bash
+pip install -r requirements-local.txt
+```
+
+Then restart the app. On the first request you'll see the model loading in the terminal:
+
+```
+Loading unitary/toxic-bert on mps…
+✅ english model ready on mps.
+```
+
+### Verify which backend is running
+
+```bash
+curl http://localhost:8000/health
+```
+
+```json
+{"status": "ok", "backend": "huggingface"}
+# or
+{"status": "ok", "backend": "local"}
+```
+
+The active backend is also shown in the app's subtitle: **☁️ HuggingFace API** or **🖥 Local (MPS)**.
+
+---
+
 ## 🌐 Host publicly from your own machine (free)
 
 Use `start.sh` to launch the app and a Cloudflare Tunnel in one command:
@@ -126,7 +179,9 @@ toxic_language_detector/
 │       └── index.html       # Mobile-friendly single-page UI
 ├── eda.ipynb                # Exploratory / prototype notebook
 ├── start.sh                 # Launch app + Cloudflare tunnel in one command
-├── requirements.txt         # Python dependencies
+├── requirements.txt         # Base dependencies (HuggingFace backend)
+├── requirements-local.txt   # Extra deps for local inference (torch, transformers)
+├── .env.example             # Environment variable template
 ├── SELF_HOSTING.md          # Step-by-step self-hosting guide
 └── README.md
 ```
