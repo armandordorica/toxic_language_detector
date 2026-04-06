@@ -24,7 +24,7 @@
       border-radius: 1.25rem;
       padding: 2rem 1.75rem;
       width: 100%;
-      max-width: 480px;
+      max-width: 600px;
       box-shadow: 0 25px 60px rgba(0,0,0,0.5);
     }
 
@@ -75,9 +75,14 @@
     }
     textarea:focus { border-color: #6366f1; }
 
-    button {
-      width: 100%;
+    .btn-row {
+      display: flex;
+      gap: 0.75rem;
       margin-top: 1rem;
+    }
+
+    button {
+      flex: 1;
       padding: 0.85rem;
       border: none;
       border-radius: 0.75rem;
@@ -87,6 +92,9 @@
       font-weight: 600;
       cursor: pointer;
       transition: opacity 0.2s, transform 0.1s;
+    }
+    button.race-btn {
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
     }
     button:hover  { opacity: 0.9; }
     button:active { transform: scale(0.98); }
@@ -181,12 +189,72 @@
       margin-right: 6px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Race results ─────────────────────────────────────── */
+    #race-results {
+      display: none;
+      margin-top: 1.5rem;
+    }
+    #race-results h3 {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #718096;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+    .race-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .race-card {
+      background: #0f0f1a;
+      border: 1px solid #2d2d4e;
+      border-radius: 0.85rem;
+      padding: 1rem;
+    }
+    .race-card .model-name {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #a0aec0;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+    .race-card .race-time {
+      font-size: 1.4rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      margin-bottom: 0.4rem;
+    }
+    .race-card .race-verdict {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+    .race-card .race-score {
+      font-size: 0.78rem;
+      color: #718096;
+    }
+    .winner-badge {
+      display: inline-block;
+      font-size: 0.68rem;
+      font-weight: 700;
+      background: #6366f1;
+      color: #fff;
+      border-radius: 999px;
+      padding: 0.1rem 0.5rem;
+      margin-left: 0.4rem;
+      vertical-align: middle;
+      letter-spacing: 0.04em;
+    }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>🙊 Toxic Language Detector</h1>
-    <p class="subtitle">Powered by <strong>unitary/toxic-bert</strong></p>
+    <p class="subtitle">Powered by <strong>unitary/toxic-bert</strong> &amp; <strong>unitary/xlm-roberta</strong></p>
 
     <select id="model-select">
       <option value="english">🇬🇧 English only — toxic-bert</option>
@@ -194,7 +262,11 @@
     </select>
 
     <textarea id="input-text" placeholder="Type or paste any message here…"></textarea>
-    <button id="analyze-btn" onclick="analyze()">Analyze</button>
+
+    <div class="btn-row">
+      <button id="analyze-btn" onclick="analyze()">Analyze</button>
+      <button id="race-btn" class="race-btn" onclick="race()">⏱ Race Both</button>
+    </div>
 
     <div id="error-msg"></div>
 
@@ -208,6 +280,24 @@
       <h3>Score Breakdown</h3>
       <div id="score-bars"></div>
     </div>
+
+    <div id="race-results">
+      <h3>⏱ Race Results</h3>
+      <div class="race-grid">
+        <div class="race-card" id="race-english">
+          <div class="model-name">🇬🇧 English</div>
+          <div class="race-time" id="race-time-english">—</div>
+          <div class="race-verdict" id="race-verdict-english">—</div>
+          <div class="race-score" id="race-score-english"></div>
+        </div>
+        <div class="race-card" id="race-multilingual">
+          <div class="model-name">🌍 Multilingual</div>
+          <div class="race-time" id="race-time-multilingual">—</div>
+          <div class="race-verdict" id="race-verdict-multilingual">—</div>
+          <div class="race-score" id="race-score-multilingual"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -217,33 +307,40 @@
       return "#38a169";
     }
 
+    async function callModel(text, model) {
+      const start = performance.now();
+      const res   = await fetch("/analyze", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ text, model }),
+      });
+      const ms   = performance.now() - start;
+      const data = await res.json();
+      return { data, ms };
+    }
+
     async function analyze() {
       const text  = document.getElementById("input-text").value.trim();
       const model = document.getElementById("model-select").value;
       const btn   = document.getElementById("analyze-btn");
       const err   = document.getElementById("error-msg");
 
-      // Reset UI
       err.style.display = "none";
       document.getElementById("alert-banner").style.display = "none";
-      document.getElementById("scores").style.display        = "none";
+      document.getElementById("scores").style.display       = "none";
+      document.getElementById("race-results").style.display = "none";
 
       if (!text) {
-        err.textContent = "Please enter some text first.";
+        err.textContent   = "Please enter some text first.";
         err.style.display = "block";
         return;
       }
 
-      btn.disabled   = true;
-      btn.innerHTML  = '<span class="spinner"></span>Analyzing…';
+      btn.disabled  = true;
+      btn.innerHTML = '<span class="spinner"></span>Analyzing…';
 
       try {
-        const res  = await fetch("/analyze", {
-          method:  "POST",
-          headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify({ text, model }),
-        });
-        const data = await res.json();
+        const { data } = await callModel(text, model);
 
         if (data.error) {
           err.textContent   = data.error;
@@ -256,38 +353,30 @@
         banner.style.display    = "block";
         banner.style.background = data.alert.color + "22";
         banner.style.border     = `1px solid ${data.alert.color}`;
-        document.getElementById("alert-emoji").textContent  = data.alert.emoji;
-        document.getElementById("alert-level").textContent  = data.alert.level;
-        document.getElementById("alert-level").style.color  = data.alert.color;
+        document.getElementById("alert-emoji").textContent = data.alert.emoji;
+        document.getElementById("alert-level").textContent = data.alert.level;
+        document.getElementById("alert-level").style.color = data.alert.color;
         document.getElementById("alert-detail").textContent =
           `Top signal: ${data.top_label.replace(/_/g," ")} — ${(data.top_score * 100).toFixed(1)}%`;
 
         // ── Score bars ────────────────────────────────────
         const barsDiv = document.getElementById("score-bars");
         barsDiv.innerHTML = "";
-
         const entries = Object.entries(data.scores);
-
         if (entries.length === 1) {
           barsDiv.innerHTML = `<p style="font-size:0.8rem;color:#718096;margin-bottom:0.85rem;">
             The multilingual model returns an overall toxicity score only — category breakdown is not available.
           </p>`;
         }
-
-        const sorted = entries.sort((a,b) => b[1] - a[1]);
-        sorted.forEach(([label, value]) => {
-          const pct   = (value * 100).toFixed(1);
-          const color = scoreColor(value);
+        entries.sort((a,b) => b[1] - a[1]).forEach(([label, value]) => {
+          const pct = (value * 100).toFixed(1);
           barsDiv.innerHTML += `
             <div class="score-row">
               <span class="score-label">${label.replace(/_/g," ")}</span>
-              <div class="bar-track">
-                <div class="bar-fill" style="width:${pct}%;background:${color}"></div>
-              </div>
+              <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${scoreColor(value)}"></div></div>
               <span class="score-value">${pct}%</span>
             </div>`;
         });
-
         document.getElementById("scores").style.display = "block";
 
       } catch (e) {
@@ -299,7 +388,81 @@
       }
     }
 
-    // Allow Ctrl+Enter / Cmd+Enter to submit
+    async function race() {
+      const text = document.getElementById("input-text").value.trim();
+      const btn  = document.getElementById("race-btn");
+      const err  = document.getElementById("error-msg");
+
+      err.style.display = "none";
+      document.getElementById("alert-banner").style.display = "none";
+      document.getElementById("scores").style.display       = "none";
+      document.getElementById("race-results").style.display = "none";
+
+      if (!text) {
+        err.textContent   = "Please enter some text first.";
+        err.style.display = "block";
+        return;
+      }
+
+      btn.disabled  = true;
+      btn.innerHTML = '<span class="spinner"></span>Racing…';
+
+      // Reset race cards
+      ["english", "multilingual"].forEach(m => {
+        document.getElementById(`race-time-${m}`).textContent    = "…";
+        document.getElementById(`race-verdict-${m}`).textContent = "…";
+        document.getElementById(`race-score-${m}`).textContent   = "";
+        document.getElementById(`race-${m}`).style.borderColor   = "#2d2d4e";
+        document.getElementById(`race-time-${m}`).style.color    = "#e2e8f0";
+        // remove old winner badges
+        document.querySelectorAll(".winner-badge").forEach(b => b.remove());
+      });
+
+      try {
+        // Fire both simultaneously
+        const [english, multilingual] = await Promise.all([
+          callModel(text, "english"),
+          callModel(text, "multilingual"),
+        ]);
+
+        const results = { english, multilingual };
+        const faster  = english.ms <= multilingual.ms ? "english" : "multilingual";
+
+        ["english", "multilingual"].forEach(m => {
+          const { data, ms } = results[m];
+          const timeEl    = document.getElementById(`race-time-${m}`);
+          const verdictEl = document.getElementById(`race-verdict-${m}`);
+          const scoreEl   = document.getElementById(`race-score-${m}`);
+          const cardEl    = document.getElementById(`race-${m}`);
+
+          timeEl.textContent    = `${ms.toFixed(0)} ms`;
+          timeEl.style.color    = scoreColor(data.top_score);
+
+          verdictEl.textContent = `${data.alert.emoji} ${data.alert.level}`;
+          verdictEl.style.color = data.alert.color;
+
+          scoreEl.textContent   = `Top: ${data.top_label.replace(/_/g," ")} — ${(data.top_score * 100).toFixed(1)}%`;
+          cardEl.style.borderColor = data.alert.color + "88";
+
+          if (m === faster) {
+            const badge = document.createElement("span");
+            badge.className   = "winner-badge";
+            badge.textContent = "FASTER";
+            document.querySelector(`#race-${m} .model-name`).appendChild(badge);
+          }
+        });
+
+        document.getElementById("race-results").style.display = "block";
+
+      } catch (e) {
+        err.textContent   = "Network error — is the server running?";
+        err.style.display = "block";
+      } finally {
+        btn.disabled  = false;
+        btn.innerHTML = "⏱ Race Both";
+      }
+    }
+
     document.addEventListener("keydown", e => {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") analyze();
     });
