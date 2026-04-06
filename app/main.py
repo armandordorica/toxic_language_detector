@@ -9,8 +9,8 @@ app = FastAPI(title="Toxic Language Detector")
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 HF_MODELS = {
-    "english":       "https://api-inference.huggingface.co/models/unitary/toxic-bert",
-    "multilingual":  "https://api-inference.huggingface.co/models/unitary/multilingual-toxic-xlm-roberta",
+    "english":       "https://router.huggingface.co/hf-inference/models/unitary/toxic-bert",
+    "multilingual":  "https://router.huggingface.co/hf-inference/models/unitary/multilingual-toxic-xlm-roberta",
 }
 HF_API_TOKEN = os.environ.get("HF_API_TOKEN", "")
 
