@@ -14,6 +14,13 @@ fi
 
 PORT=${PORT:-8000}
 
+# Activate virtual environment if present
+if [ -f toxic_language/bin/activate ]; then
+  source toxic_language/bin/activate
+elif [ -f venv/bin/activate ]; then
+  source venv/bin/activate
+fi
+
 echo "Starting app on port $PORT..."
 uvicorn app.main:app --host 127.0.0.1 --port "$PORT" &
 APP_PID=$!
