@@ -8,7 +8,10 @@ import os
 app = FastAPI(title="Toxic Language Detector")
 
 # ── Config ─────────────────────────────────────────────────────────────────────
-HF_API_URL = "https://api-inference.huggingface.co/models/unitary/toxic-bert"
+HF_MODELS = {
+    "english":       "https://api-inference.huggingface.co/models/unitary/toxic-bert",
+    "multilingual":  "https://api-inference.huggingface.co/models/unitary/multilingual-toxic-xlm-roberta",
+}
 HF_API_TOKEN = os.environ.get("HF_API_TOKEN", "")
 
 # ── Templates ──────────────────────────────────────────────────────────────────
@@ -31,7 +34,8 @@ def get_alert(max_score: float) -> dict:
 
 # ── Request / Response schemas ─────────────────────────────────────────────────
 class TextRequest(BaseModel):
-    text: str
+    text:  str
+    model: str = "english"
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
@@ -53,9 +57,11 @@ def analyze(body: TextRequest):
     if not HF_API_TOKEN:
         return {"error": "HF_API_TOKEN is not set. See .env.example."}
 
+    api_url = HF_MODELS.get(body.model, HF_MODELS["english"])
+
     try:
         response = requests.post(
-            HF_API_URL,
+            api_url,
             headers={"Authorization": f"Bearer {HF_API_TOKEN}"},
             json={"inputs": body.text},
             timeout=30,
