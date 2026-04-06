@@ -266,7 +266,15 @@
         const barsDiv = document.getElementById("score-bars");
         barsDiv.innerHTML = "";
 
-        const sorted = Object.entries(data.scores).sort((a,b) => b[1] - a[1]);
+        const entries = Object.entries(data.scores);
+
+        if (entries.length === 1) {
+          barsDiv.innerHTML = `<p style="font-size:0.8rem;color:#718096;margin-bottom:0.85rem;">
+            The multilingual model returns an overall toxicity score only — category breakdown is not available.
+          </p>`;
+        }
+
+        const sorted = entries.sort((a,b) => b[1] - a[1]);
         sorted.forEach(([label, value]) => {
           const pct   = (value * 100).toFixed(1);
           const color = scoreColor(value);
